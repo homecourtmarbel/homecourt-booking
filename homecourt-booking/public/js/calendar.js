@@ -1,7 +1,7 @@
 let CONFIG = null;
 let currentDate = null;
 let currentSlots = [];
-const selected = new Set(); // keys: `${hour}-${courtId}`
+const selected = new Set(); // keys: `${hour}::${courtId}`
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -94,7 +94,7 @@ function renderGrid() {
     html += `<tr><td class="time-col">${formatHour(hour)} – ${formatHour(hour + 1)}</td>`;
     for (const court of courts) {
       const slot = currentSlots.find((s) => s.hour === hour && s.courtId === court.id);
-      const key = `${hour}-${court.id}`;
+      const key = `${hour}::${court.id}`;
       const isSelected = selected.has(key);
       let cls = "slot open";
       let label = `Open · ${CONFIG.pricing.currencySymbol}${slot.price}`;
@@ -121,7 +121,7 @@ function renderGrid() {
 }
 
 function toggleSlot(hour, courtId) {
-  const key = `${hour}-${courtId}`;
+  const key = `${hour}::${courtId}`;
   if (selected.has(key)) selected.delete(key);
   else selected.add(key);
   renderGrid();
@@ -130,7 +130,7 @@ function toggleSlot(hour, courtId) {
 function selectedTotal() {
   let total = 0;
   for (const key of selected) {
-    const [hour, courtId] = key.split("-");
+    const [hour, courtId] = key.split("::");
     const slot = currentSlots.find((s) => String(s.hour) === hour && s.courtId === courtId);
     if (slot) total += slot.price;
   }
@@ -206,7 +206,7 @@ async function confirmBooking() {
   confirmBtn.textContent = "Booking...";
 
   const slots = [...selected].map((key) => {
-    const [hour, courtId] = key.split("-");
+    const [hour, courtId] = key.split("::");
     return { date: currentDate, hour: Number(hour), courtId };
   });
 
