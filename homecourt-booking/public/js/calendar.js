@@ -83,4 +83,13 @@ function renderGrid() {
   const table = document.getElementById("slot-grid");
   if (!table) return;
   const courts = CONFIG.courts;
-  const hours =
+  const hours = [...new Set(currentSlots.map((s) => s.hour))].sort((a, b) => a - b);
+
+  let html =
+    "<thead><tr><th>Time</th>" +
+    courts.map((c) => `<th>${c.name}</th>`).join("") +
+    "</tr></thead><tbody>";
+
+  for (const hour of hours) {
+    html += `<tr><td class="time-col">${formatHour(hour)} – ${formatHour(hour + 1)}</td>`;
+    for (const court of courts) {
