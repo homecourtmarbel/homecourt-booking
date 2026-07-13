@@ -44,8 +44,34 @@
 
       <div id="modal-step-details">
         <p style="color: var(--muted); margin-top: -6px;">Just your name and phone number - no account needed.</p>
-        <input id="modal-name" type="text" placeholder="Full name" autocomplete="name" />
-        <input id="modal-phone" type="tel" placeholder="Phone number" autocomplete="tel" />
+
+        <label>Name</label>
+        <div class="name-row">
+          <input id="modal-first-name" type="text" placeholder="First name" autocomplete="given-name" />
+          <input id="modal-last-name" type="text" placeholder="Last name" autocomplete="family-name" />
+        </div>
+
+        <label>Phone number</label>
+        <div class="phone-row">
+          <select id="modal-country-code" aria-label="Country code">
+            <option value="63" selected>🇵🇭 +63</option>
+            <option value="1">🇺🇸 +1</option>
+            <option value="1">🇨🇦 +1</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="61">🇦🇺 +61</option>
+            <option value="65">🇸🇬 +65</option>
+            <option value="60">🇲🇾 +60</option>
+            <option value="852">🇭🇰 +852</option>
+            <option value="971">🇦🇪 +971</option>
+            <option value="966">🇸🇦 +966</option>
+            <option value="81">🇯🇵 +81</option>
+            <option value="82">🇰🇷 +82</option>
+            <option value="86">🇨🇳 +86</option>
+            <option value="91">🇮🇳 +91</option>
+          </select>
+          <input id="modal-phone" type="tel" placeholder="9171234567" autocomplete="tel-national" />
+        </div>
+
         <div style="display:flex; gap:10px; margin-top:8px;">
           <button id="modal-cancel" class="cancel-btn" style="flex:1;">Cancel</button>
           <button id="modal-next" class="primary" style="flex:1;">Next: Payment</button>
@@ -54,15 +80,15 @@
 
       <div id="modal-step-payment" style="display:none;">
         <p style="color: var(--muted); margin-top: -6px;" id="pay-amount"></p>
-        <div style="text-align:center;">
-          <img id="pay-qr" src="" alt="Payment QR code" style="width:180px; height:180px; border-radius:8px; background:#fff;" />
+        <div class="qr-frame">
+          <img id="pay-qr" src="" alt="Payment QR code" />
         </div>
-        <p style="font-size:0.9rem;">
+        <p style="font-size:1rem;">
           <b id="pay-method"></b> · <span id="pay-account-name"></span><br/>
           <span id="pay-account-number" style="color: var(--accent); font-weight:600;"></span>
         </p>
-        <p style="color: var(--muted); font-size: 0.85rem;" id="pay-instructions"></p>
-        <label style="font-size:0.85rem; color: var(--muted);">Upload your payment receipt/screenshot</label>
+        <p style="color: var(--muted); font-size: 0.9rem;" id="pay-instructions"></p>
+        <label>Upload your payment receipt/screenshot</label>
         <input id="modal-receipt" type="file" accept="image/*" />
         <div style="display:flex; gap:10px; margin-top:8px;">
           <button id="modal-back" class="cancel-btn" style="flex:1;">Back</button>
