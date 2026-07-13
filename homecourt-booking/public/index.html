@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Court Booking</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-brand" id="facility-name">Court Booking</div>
+    <div class="nav-links">
+      <a href="/courts.html" class="nav-link">Courts</a>
+      <span id="auth-nav" class="nav-links"></span>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1 id="facility-tagline">Play. Compete. Connect.</h1>
+    <p class="tagline" id="facility-location">Your City, Your Country</p>
+    <p class="rate" id="from-rate">From $250/hr</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Reserve your court</h2>
+      <p style="color: var(--muted); margin-top: -8px;">Pick a date, tap the open slots you want, and confirm.</p>
+
+      <div class="date-scroller" id="date-scroller"></div>
+
+      <table id="slot-grid"></table>
+
+      <div class="summary-bar">
+        <span id="summary">Tap open slots to select them</span>
+        <button id="book-btn" class="primary" disabled>Book selected slots</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/auth.js"></script>
+  <script src="/js/calendar.js"></script>
+</body>
+</html>
