@@ -48,8 +48,11 @@ module.exports = {
     "Restrooms"
   ],
 
-  address: "Koronadal City (Marbel), South Cotabato, Philippines",
-  mapsQuery: "Home Court Koronadal South Cotabato",
+  address: "Amurao Subdivision, Barangay Santa Cruz, Koronadal City, South Cotabato",
+  // Shown alongside the address as helpful landmarks for people
+  // who don't know the subdivision by name.
+  landmark: "Behind Pryce Gas · beside La Rosa Building (Cebuana Lhuillier) · right side",
+  mapsQuery: "Pryce Gas Amurao Subdivision Santa Cruz Koronadal City",
 
   // ── Payment ──────────────────────────────────────────────
   // Shown to the customer right before they confirm a booking.
