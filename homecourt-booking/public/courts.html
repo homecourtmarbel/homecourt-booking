@@ -23,8 +23,10 @@
       <div class="info-grid">
         <div class="info-item"><b>Rate</b><span id="rate-info"></span></div>
         <div class="info-item"><b>Address</b><span id="address-info"></span></div>
+        <div class="info-item"><b>Landmarks</b><span id="landmark-info"></span></div>
         <div class="info-item"><b>Hours</b><span id="hours-info"></span></div>
       </div>
+      <p style="margin-top: 12px;"><a id="maps-link" href="#" target="_blank" style="color: var(--accent); font-weight: 600;">Get directions →</a></p>
 
       <h3 style="margin-top: 28px;">Amenities</h3>
       <div class="info-grid" id="amenities"></div>
@@ -43,7 +45,10 @@
       document.getElementById("rate-info").textContent =
         cfg.pricing.currencySymbol + cfg.pricing.offPeakRate + "-" + cfg.pricing.currencySymbol + cfg.pricing.peakRate + " per hour · " + cfg.courts.length + " court(s)";
       document.getElementById("address-info").textContent = cfg.address;
+      document.getElementById("landmark-info").textContent = cfg.landmark || "";
       document.getElementById("hours-info").textContent = cfg.openHour + ":00 - " + cfg.closeHour + ":00 daily";
+      document.getElementById("maps-link").href =
+        "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(cfg.mapsQuery || cfg.address);
       document.getElementById("amenities").innerHTML = cfg.amenities
         .map((a) => `<div class="info-item">${a}</div>`)
         .join("");
