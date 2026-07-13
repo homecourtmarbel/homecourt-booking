@@ -2,6 +2,11 @@
 // EDIT THIS FILE to turn this into YOUR court's booking site.
 // Nothing else in the app needs to change - the whole frontend
 // and API read from this config.
+//
+// Do NOT put secrets (passwords, API keys) in this file if your
+// GitHub repo is public - anyone can read it. The admin key for
+// reviewing payment receipts is set separately as an environment
+// variable (ADMIN_KEY) - see README.md.
 // ─────────────────────────────────────────────────────────────
 module.exports = {
   facilityName: "Home Court",
@@ -44,5 +49,23 @@ module.exports = {
   ],
 
   address: "Koronadal City (Marbel), South Cotabato, Philippines",
-  mapsQuery: "Home Court Koronadal South Cotabato"
+  mapsQuery: "Home Court Koronadal South Cotabato",
+
+  // ── Payment ──────────────────────────────────────────────
+  // Shown to the customer right before they confirm a booking.
+  // Replace with your real GCash details. Replace
+  // public/img/payment-qr.svg with your real QR code image
+  // (keep the same filename, or update qrImagePath below).
+  payment: {
+    methodName: "GCash",
+    // These are masked the same way GCash itself masks them on the
+    // sender's confirmation screen - that's expected, not a typo.
+    accountName: "MA****A R.",
+    accountNumber: "+63 956 770 ••••",
+    instructions:
+      "Send the exact total via GCash to the details above (transfer fees may apply), then upload a screenshot of your payment confirmation below. Your slot is reserved as soon as you submit - our team verifies the receipt afterward.",
+    // Save your real GCash QR screenshot as public/img/payment-qr.png
+    // (exact filename) - this path already points there.
+    qrImagePath: "/img/payment-qr.png"
+  }
 };

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Owner: Bookings & Receipts</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand" id="facility-name">Court Booking</a>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Booking page</a>
+    </div>
+  </nav>
+
+  <main class="container" style="padding-top: 40px;">
+    <section class="card">
+      <h2>Owner: bookings &amp; receipts</h2>
+      <p style="color: var(--muted); margin-top: -8px;">
+        Not linked from the public site. Bookmark this page - anyone with the admin key can see all bookings.
+      </p>
+
+      <div style="display:flex; gap:10px; max-width:420px; margin: 16px 0;">
+        <input id="key-input" type="password" placeholder="Admin key" style="flex:1; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background: var(--panel-2); color: var(--text);" />
+        <button id="load-btn" class="primary">Load</button>
+      </div>
+
+      <div id="admin-list"></div>
+    </section>
+  </main>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

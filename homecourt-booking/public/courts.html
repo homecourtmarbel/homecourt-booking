@@ -11,7 +11,7 @@
     <a href="/" class="nav-brand" id="facility-name">Court Booking</a>
     <div class="nav-links">
       <a href="/courts.html" class="nav-link">Courts</a>
-      <span id="auth-nav" class="nav-links"></span>
+      <a href="/bookings.html" class="nav-link">My bookings</a>
     </div>
   </nav>
 
@@ -29,11 +29,10 @@
       <h3 style="margin-top: 28px;">Amenities</h3>
       <div class="info-grid" id="amenities"></div>
 
-      <p style="margin-top: 28px;"><a href="/#" onclick="window.location.href='/'" style="color: var(--accent); font-weight: 600;">← Book a court</a></p>
+      <p style="margin-top: 28px;"><a href="/" style="color: var(--accent); font-weight: 600;">← Book a court</a></p>
     </section>
   </main>
 
-  <script src="/js/auth.js"></script>
   <script>
     async function loadCourtsPage() {
       const res = await fetch("/api/config");
@@ -42,7 +41,7 @@
       document.getElementById("facility-name-2").textContent = cfg.facilityName;
       document.getElementById("facility-location-2").textContent = cfg.location;
       document.getElementById("rate-info").textContent =
-        cfg.pricing.currencySymbol + cfg.pricing.offPeakRate + "-" + cfg.pricing.currencySymbol + cfg.pricing.peakRate + " per hour · " + cfg.courts.length + " courts";
+        cfg.pricing.currencySymbol + cfg.pricing.offPeakRate + "-" + cfg.pricing.currencySymbol + cfg.pricing.peakRate + " per hour · " + cfg.courts.length + " court(s)";
       document.getElementById("address-info").textContent = cfg.address;
       document.getElementById("hours-info").textContent = cfg.openHour + ":00 - " + cfg.closeHour + ":00 daily";
       document.getElementById("amenities").innerHTML = cfg.amenities

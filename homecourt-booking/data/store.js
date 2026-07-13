@@ -8,13 +8,13 @@ const DB_PATH = path.join(__dirname, "db.json");
 
 function readDB() {
   if (!fs.existsSync(DB_PATH)) {
-    writeDB({ bookings: [], users: [] });
+    writeDB({ bookings: [] });
   }
   const raw = fs.readFileSync(DB_PATH, "utf-8");
   try {
     return JSON.parse(raw);
   } catch (e) {
-    return { bookings: [], users: [] };
+    return { bookings: [] };
   }
 }
 

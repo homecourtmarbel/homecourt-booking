@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <rect width="240" height="240" fill="#ffffff"/>
+  <rect x="10" y="10" width="220" height="220" fill="none" stroke="#c9c9c9" stroke-width="2" stroke-dasharray="8,6"/>
+  <text x="120" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#666">Replace this file:</text>
+  <text x="120" y="128" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#666">public/img/payment-qr.svg</text>
+  <text x="120" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#666">with your real GCash QR</text>
+</svg>

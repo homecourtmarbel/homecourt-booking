@@ -11,7 +11,7 @@
     <div class="nav-brand" id="facility-name">Court Booking</div>
     <div class="nav-links">
       <a href="/courts.html" class="nav-link">Courts</a>
-      <span id="auth-nav" class="nav-links"></span>
+      <a href="/bookings.html" class="nav-link">My bookings</a>
     </div>
   </nav>
 
@@ -24,7 +24,7 @@
   <main class="container">
     <section class="card">
       <h2>Reserve your court</h2>
-      <p style="color: var(--muted); margin-top: -8px;">Pick a date, tap the open slots you want, and confirm.</p>
+      <p style="color: var(--muted); margin-top: -8px;">Pick a date, tap the open slots you want, and confirm. No account needed.</p>
 
       <div class="date-scroller" id="date-scroller"></div>
 
@@ -37,7 +37,41 @@
     </section>
   </main>
 
-  <script src="/js/auth.js"></script>
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <h3 id="modal-step-title">Almost done</h3>
+      <div class="form-error" id="modal-error"></div>
+
+      <div id="modal-step-details">
+        <p style="color: var(--muted); margin-top: -6px;">Just your name and phone number - no account needed.</p>
+        <input id="modal-name" type="text" placeholder="Full name" autocomplete="name" />
+        <input id="modal-phone" type="tel" placeholder="Phone number" autocomplete="tel" />
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button id="modal-cancel" class="cancel-btn" style="flex:1;">Cancel</button>
+          <button id="modal-next" class="primary" style="flex:1;">Next: Payment</button>
+        </div>
+      </div>
+
+      <div id="modal-step-payment" style="display:none;">
+        <p style="color: var(--muted); margin-top: -6px;" id="pay-amount"></p>
+        <div style="text-align:center;">
+          <img id="pay-qr" src="" alt="Payment QR code" style="width:180px; height:180px; border-radius:8px; background:#fff;" />
+        </div>
+        <p style="font-size:0.9rem;">
+          <b id="pay-method"></b> · <span id="pay-account-name"></span><br/>
+          <span id="pay-account-number" style="color: var(--accent); font-weight:600;"></span>
+        </p>
+        <p style="color: var(--muted); font-size: 0.85rem;" id="pay-instructions"></p>
+        <label style="font-size:0.85rem; color: var(--muted);">Upload your payment receipt/screenshot</label>
+        <input id="modal-receipt" type="file" accept="image/*" />
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button id="modal-back" class="cancel-btn" style="flex:1;">Back</button>
+          <button id="modal-confirm" class="primary" style="flex:1;">Confirm booking</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/calendar.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 const express = require("express");
-const session = require("express-session");
-const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const crypto = require("crypto");
+const fs = require("fs");
 const path = require("path");
 
 const config = require("./config");
@@ -9,26 +9,44 @@ const { readDB, writeDB } = require("./data/store");
 
 const app = express();
 
-app.use(express.json());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "dev-secret-change-me",
-    resave: false,
-    saveUninitialized: false,
-    cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 7 }
-  })
-);
-app.use(express.static(path.join(__dirname, "public")));
+// Admin key protects the receipt-review page. Set this as a real
+// environment variable in your host's dashboard (Render: Settings
+// > Environment) - never commit a real secret into config.js
+// since this repo is public.
+const ADMIN_KEY = process.env.ADMIN_KEY || "changeme-admin-key";
 
-function requireAuth(req, res, next) {
-  if (!req.session.userId) return res.status(401).json({ error: "Not logged in" });
-  next();
-}
+const UPLOAD_DIR = path.join(__dirname, "uploads", "receipts");
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || "").slice(0, 10);
+      cb(null, `${crypto.randomUUID()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Receipt must be an image file"));
+    }
+    cb(null, true);
+  }
+});
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 function priceForHour(hour) {
   return hour >= config.pricing.peakStartHour
     ? config.pricing.peakRate
     : config.pricing.offPeakRate;
+}
+
+function normalizePhone(phone) {
+  return String(phone || "").replace(/[^\d]/g, "");
 }
 
 // ---- Config (drives the whole frontend) ----
@@ -45,7 +63,8 @@ app.get("/api/config", (req, res) => {
     pricing: config.pricing,
     amenities: config.amenities,
     address: config.address,
-    mapsQuery: config.mapsQuery
+    mapsQuery: config.mapsQuery,
+    payment: config.payment
   });
 });
 
@@ -80,108 +99,159 @@ app.get("/api/availability", (req, res) => {
   res.json({ date, slots: slotsForDate(date, db) });
 });
 
-// ---- Bookings ----
-app.post("/api/bookings", requireAuth, (req, res) => {
-  const { date, hour, courtId } = req.body || {};
-  if (!date || hour === undefined || hour === null || !courtId) {
-    return res.status(400).json({ error: "date, hour, courtId are required" });
+// ---- Bookings (guest checkout, one shared receipt per batch) ----
+// multipart/form-data fields: customerName, customerPhone,
+// slots (JSON string: [{date,hour,courtId}, ...]), file field "receipt"
+app.post("/api/bookings", upload.single("receipt"), (req, res) => {
+  const cleanupUploadedFile = () => {
+    if (req.file) fs.unlink(req.file.path, () => {});
+  };
+
+  const { customerName, customerPhone } = req.body || {};
+  if (!customerName || !customerPhone) {
+    cleanupUploadedFile();
+    return res.status(400).json({ error: "customerName and customerPhone are required" });
   }
-  const court = config.courts.find((c) => c.id === courtId);
-  if (!court) return res.status(400).json({ error: "Invalid courtId" });
-  if (hour < config.openHour || hour >= config.closeHour) {
-    return res.status(400).json({ error: "Hour outside operating hours" });
+  if (!req.file) {
+    return res.status(400).json({ error: "A payment receipt image is required" });
+  }
+
+  let slots;
+  try {
+    slots = JSON.parse(req.body.slots || "[]");
+  } catch (e) {
+    cleanupUploadedFile();
+    return res.status(400).json({ error: "slots must be valid JSON" });
+  }
+  if (!Array.isArray(slots) || slots.length === 0) {
+    cleanupUploadedFile();
+    return res.status(400).json({ error: "At least one slot is required" });
+  }
+
+  // Validate every requested slot before creating anything.
+  for (const s of slots) {
+    if (!s.date || s.hour === undefined || s.hour === null || !s.courtId) {
+      cleanupUploadedFile();
+      return res.status(400).json({ error: "Each slot needs date, hour, courtId" });
+    }
+    const court = config.courts.find((c) => c.id === s.courtId);
+    if (!court) {
+      cleanupUploadedFile();
+      return res.status(400).json({ error: `Invalid courtId: ${s.courtId}` });
+    }
+    if (s.hour < config.openHour || s.hour >= config.closeHour) {
+      cleanupUploadedFile();
+      return res.status(400).json({ error: "Hour outside operating hours" });
+    }
   }
 
   const db = readDB();
-  const clash = db.bookings.find(
-    (b) => b.date === date && b.hour === hour && b.courtId === courtId
-  );
-  if (clash) return res.status(409).json({ error: "That slot was just booked by someone else" });
 
-  const booking = {
-    id: crypto.randomUUID(),
-    userId: req.session.userId,
-    date,
-    hour,
-    courtId,
-    courtName: court.name,
-    price: priceForHour(hour),
-    createdAt: new Date().toISOString()
-  };
-  db.bookings.push(booking);
+  // Check all requested slots for conflicts first (atomic-ish - all or nothing).
+  const conflicts = slots.filter((s) =>
+    db.bookings.some((b) => b.date === s.date && b.hour === s.hour && b.courtId === s.courtId)
+  );
+  if (conflicts.length > 0) {
+    cleanupUploadedFile();
+    return res.status(409).json({
+      error: "One or more of those slots were just booked by someone else",
+      conflicts
+    });
+  }
+
+  const receiptPath = `/uploads/receipts/${req.file.filename}`;
+  const groupId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+
+  const newBookings = slots.map((s) => {
+    const court = config.courts.find((c) => c.id === s.courtId);
+    return {
+      id: crypto.randomUUID(),
+      groupId,
+      customerName,
+      customerPhone: normalizePhone(customerPhone),
+      date: s.date,
+      hour: s.hour,
+      courtId: s.courtId,
+      courtName: court.name,
+      price: priceForHour(s.hour),
+      receiptPath,
+      verified: false,
+      createdAt
+    };
+  });
+
+  db.bookings.push(...newBookings);
   writeDB(db);
-  res.status(201).json({ booking });
+  res.status(201).json({ bookings: newBookings });
 });
 
-app.get("/api/bookings/me", requireAuth, (req, res) => {
+// Look up bookings by phone number - no login required.
+app.get("/api/bookings/lookup", (req, res) => {
+  const phone = normalizePhone(req.query.phone);
+  if (!phone) return res.status(400).json({ error: "phone query param is required" });
   const db = readDB();
   const bookings = db.bookings
-    .filter((b) => b.userId === req.session.userId)
+    .filter((b) => b.customerPhone === phone)
     .sort((a, b) => (a.date + String(a.hour).padStart(2, "0")).localeCompare(
       b.date + String(b.hour).padStart(2, "0")
     ));
   res.json({ bookings });
 });
 
-app.delete("/api/bookings/:id", requireAuth, (req, res) => {
+// Cancel a booking - must provide the matching phone number as proof.
+app.delete("/api/bookings/:id", (req, res) => {
+  const phone = normalizePhone(req.query.phone || (req.body || {}).phone);
+  if (!phone) return res.status(400).json({ error: "phone is required to cancel" });
   const db = readDB();
   const idx = db.bookings.findIndex(
-    (b) => b.id === req.params.id && b.userId === req.session.userId
+    (b) => b.id === req.params.id && b.customerPhone === phone
   );
+  if (idx === -1) return res.status(404).json({ error: "Booking not found for that phone number" });
+  db.bookings.splice(idx, 1);
+  writeDB(db);
+  res.json({ ok: true });
+});
+
+// ---- Owner-only: review receipts, mark verified ----
+function requireAdminKey(req, res, next) {
+  const key = req.query.key || req.headers["x-admin-key"];
+  if (!key || key !== ADMIN_KEY) {
+    return res.status(401).json({ error: "Invalid or missing admin key" });
+  }
+  next();
+}
+
+app.get("/api/admin/bookings", requireAdminKey, (req, res) => {
+  const db = readDB();
+  const bookings = [...db.bookings].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  res.json({ bookings });
+});
+
+app.patch("/api/admin/bookings/:id/verify", requireAdminKey, (req, res) => {
+  const db = readDB();
+  const booking = db.bookings.find((b) => b.id === req.params.id);
+  if (!booking) return res.status(404).json({ error: "Booking not found" });
+  booking.verified = !booking.verified;
+  writeDB(db);
+  res.json({ booking });
+});
+
+app.delete("/api/admin/bookings/:id", requireAdminKey, (req, res) => {
+  const db = readDB();
+  const idx = db.bookings.findIndex((b) => b.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "Booking not found" });
   db.bookings.splice(idx, 1);
   writeDB(db);
   res.json({ ok: true });
 });
 
-// ---- Auth ----
-app.post("/api/auth/signup", async (req, res) => {
-  const { name, email, password } = req.body || {};
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: "name, email, password are required" });
+// Multer errors (bad file type, too large, etc.) land here.
+app.use((err, req, res, next) => {
+  if (err) {
+    return res.status(400).json({ error: err.message || "Upload error" });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
-  }
-  const db = readDB();
-  if (db.users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-    return res.status(409).json({ error: "That email is already registered" });
-  }
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = {
-    id: crypto.randomUUID(),
-    name,
-    email,
-    passwordHash,
-    createdAt: new Date().toISOString()
-  };
-  db.users.push(user);
-  writeDB(db);
-  req.session.userId = user.id;
-  res.status(201).json({ user: { id: user.id, name: user.name, email: user.email } });
-});
-
-app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body || {};
-  const db = readDB();
-  const user = db.users.find((u) => u.email.toLowerCase() === (email || "").toLowerCase());
-  if (!user) return res.status(401).json({ error: "Invalid email or password" });
-  const ok = await bcrypt.compare(password || "", user.passwordHash);
-  if (!ok) return res.status(401).json({ error: "Invalid email or password" });
-  req.session.userId = user.id;
-  res.json({ user: { id: user.id, name: user.name, email: user.email } });
-});
-
-app.post("/api/auth/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
-});
-
-app.get("/api/auth/me", (req, res) => {
-  if (!req.session.userId) return res.json({ user: null });
-  const db = readDB();
-  const user = db.users.find((u) => u.id === req.session.userId);
-  if (!user) return res.json({ user: null });
-  res.json({ user: { id: user.id, name: user.name, email: user.email } });
+  next();
 });
 
 const PORT = process.env.PORT || 3000;

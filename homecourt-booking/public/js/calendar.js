@@ -29,7 +29,7 @@ async function loadConfig() {
   if (locEl) locEl.textContent = CONFIG.location;
   if (taglineEl) taglineEl.textContent = CONFIG.tagline;
   if (rateEl) {
-    rateEl.textContent = `From ${CONFIG.pricing.currencySymbol}${CONFIG.pricing.offPeakRate}/hr · ${CONFIG.courts.length} courts`;
+    rateEl.textContent = `From ${CONFIG.pricing.currencySymbol}${CONFIG.pricing.offPeakRate}/hr · ${CONFIG.courts.length} court(s)`;
   }
 
   renderDateScroller();
@@ -127,56 +127,142 @@ function toggleSlot(hour, courtId) {
   renderGrid();
 }
 
-function updateSummary() {
-  const summaryEl = document.getElementById("summary");
-  const bookBtn = document.getElementById("book-btn");
-  if (!summaryEl || !bookBtn) return;
+function selectedTotal() {
   let total = 0;
   for (const key of selected) {
     const [hour, courtId] = key.split("-");
     const slot = currentSlots.find((s) => String(s.hour) === hour && s.courtId === courtId);
     if (slot) total += slot.price;
   }
+  return total;
+}
+
+function updateSummary() {
+  const summaryEl = document.getElementById("summary");
+  const bookBtn = document.getElementById("book-btn");
+  if (!summaryEl || !bookBtn) return;
+  const total = selectedTotal();
   summaryEl.textContent = selected.size
     ? `${selected.size} slot(s) selected · ${CONFIG.pricing.currencySymbol}${total} total`
     : "Tap open slots to select them";
   bookBtn.disabled = selected.size === 0;
 }
 
-async function bookSelected() {
-  const me = await fetch("/api/auth/me").then((r) => r.json());
-  if (!me.user) {
-    window.location.href = "/login.html";
+// ---- Guest checkout modal: details -> payment (no account needed) ----
+function openBookingModal() {
+  document.getElementById("modal-error").textContent = "";
+  document.getElementById("modal-name").value = "";
+  document.getElementById("modal-phone").value = "";
+  document.getElementById("modal-receipt").value = "";
+  showModalStep("details");
+  document.getElementById("modal-overlay").style.display = "flex";
+}
+
+function closeBookingModal() {
+  document.getElementById("modal-overlay").style.display = "none";
+}
+
+function showModalStep(step) {
+  const detailsEl = document.getElementById("modal-step-details");
+  const paymentEl = document.getElementById("modal-step-payment");
+  const titleEl = document.getElementById("modal-step-title");
+  document.getElementById("modal-error").textContent = "";
+  if (step === "details") {
+    detailsEl.style.display = "block";
+    paymentEl.style.display = "none";
+    titleEl.textContent = "Almost done";
+  } else {
+    detailsEl.style.display = "none";
+    paymentEl.style.display = "block";
+    titleEl.textContent = "Pay to confirm";
+    renderPaymentStep();
+  }
+}
+
+function renderPaymentStep() {
+  const p = CONFIG.payment;
+  document.getElementById("pay-amount").textContent =
+    `Total due: ${CONFIG.pricing.currencySymbol}${selectedTotal()} for ${selected.size} slot(s)`;
+  document.getElementById("pay-qr").src = p.qrImagePath;
+  document.getElementById("pay-method").textContent = p.methodName;
+  document.getElementById("pay-account-name").textContent = p.accountName;
+  document.getElementById("pay-account-number").textContent = p.accountNumber;
+  document.getElementById("pay-instructions").textContent = p.instructions;
+}
+
+async function confirmBooking() {
+  const name = document.getElementById("modal-name").value.trim();
+  const phone = document.getElementById("modal-phone").value.trim();
+  const receiptInput = document.getElementById("modal-receipt");
+  const errorEl = document.getElementById("modal-error");
+
+  if (!receiptInput.files || !receiptInput.files[0]) {
+    errorEl.textContent = "Please attach your payment receipt image.";
     return;
   }
-  const btn = document.getElementById("book-btn");
-  btn.disabled = true;
-  btn.textContent = "Booking...";
 
-  const keys = [...selected];
-  let okCount = 0;
-  let failCount = 0;
-  for (const key of keys) {
+  const confirmBtn = document.getElementById("modal-confirm");
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Booking...";
+
+  const slots = [...selected].map((key) => {
     const [hour, courtId] = key.split("-");
-    const res = await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: currentDate, hour: Number(hour), courtId })
-    });
-    if (res.ok) okCount++;
-    else failCount++;
+    return { date: currentDate, hour: Number(hour), courtId };
+  });
+
+  const formData = new FormData();
+  formData.append("customerName", name);
+  formData.append("customerPhone", phone);
+  formData.append("slots", JSON.stringify(slots));
+  formData.append("receipt", receiptInput.files[0]);
+
+  const res = await fetch("/api/bookings", { method: "POST", body: formData });
+  const body = await res.json();
+
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = "Confirm booking";
+
+  if (!res.ok) {
+    errorEl.textContent = body.error || "Something went wrong. Please try again.";
+    if (res.status === 409) {
+      selected.clear();
+      await selectDate(currentDate);
+      closeBookingModal();
+    }
+    return;
   }
 
   selected.clear();
+  closeBookingModal();
   await selectDate(currentDate);
-  btn.textContent = "Book selected slots";
-  document.getElementById("summary").textContent = failCount
-    ? `Booked ${okCount}, ${failCount} were already taken — availability refreshed`
-    : `Booked ${okCount} slot(s)! See "My bookings" in the top nav.`;
+  document.getElementById("summary").textContent =
+    `Booked! Save your phone number to check "My bookings" later. We'll verify your receipt shortly.`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   loadConfig();
   const bookBtn = document.getElementById("book-btn");
-  if (bookBtn) bookBtn.addEventListener("click", bookSelected);
+  if (bookBtn) bookBtn.addEventListener("click", openBookingModal);
+
+  const cancelBtn = document.getElementById("modal-cancel");
+  if (cancelBtn) cancelBtn.addEventListener("click", closeBookingModal);
+
+  const nextBtn = document.getElementById("modal-next");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      const name = document.getElementById("modal-name").value.trim();
+      const phone = document.getElementById("modal-phone").value.trim();
+      if (!name || !phone) {
+        document.getElementById("modal-error").textContent = "Please enter your name and phone number.";
+        return;
+      }
+      showModalStep("payment");
+    });
+  }
+
+  const backBtn = document.getElementById("modal-back");
+  if (backBtn) backBtn.addEventListener("click", () => showModalStep("details"));
+
+  const confirmBtn = document.getElementById("modal-confirm");
+  if (confirmBtn) confirmBtn.addEventListener("click", confirmBooking);
 });
