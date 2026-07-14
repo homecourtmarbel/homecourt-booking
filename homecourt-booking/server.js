@@ -63,7 +63,7 @@ app.get("/api/config", (req, res) => {
     pricing: config.pricing,
     amenities: config.amenities,
     address: config.address,
-    landmark: config.landmark
+    landmark: config.landmark,
     mapsQuery: config.mapsQuery,
     payment: config.payment
   });
